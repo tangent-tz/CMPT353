@@ -1,39 +1,103 @@
-#%%
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy import stats
-#%%
-dog_tweets = pd.read_csv('dog_rates_tweets.csv')
-new_dog_tweets = dog_tweets[['created_at', 'text']]
-new_dog_tweets = new_dog_tweets[new_dog_tweets['text'].str.contains("/10")]
-dog_ratings = new_dog_tweets['text'].str.extract(r'(\d+\.?\d?)/10', expand=False)
-dog_ratings = dog_ratings.astype(float)
-dog_ratings = dog_ratings[dog_ratings < 25]
-new_dog_tweets['rating'] = dog_ratings
-new_dog_tweets['created_at'] = pd.to_datetime(new_dog_tweets['created_at'])
-new_dog_tweets = new_dog_tweets.dropna()
-#%%
-new_dog_tweets['time'] = new_dog_tweets['created_at'].apply(lambda x: x.timestamp())
-slope, intercept, r_value, p_value, std_err = stats.linregress(new_dog_tweets['time'], new_dog_tweets['rating'])
-line = slope * new_dog_tweets['time'] + intercept
-#%%
-plt.scatter(new_dog_tweets['created_at'], new_dog_tweets['rating'])
-plt.plot(new_dog_tweets['created_at'], line, 'r', label='fitted line')
-plt.xlabel('Date')
-plt.ylabel('Rating')
-plt.title('Date vs Rating')
-plt.xticks(rotation=45)
-plt.show()
-#round to 2 decimal places
-print(p_value)
-if(p_value < 0.05):
-    print('The p-value is less than 0.05, the slope is different from 0')
-else:
-    print('The p-value is greater than 0.05, the slope is not different from 0')
+import sys
+from pykalman import KalmanFilter
+from sklearn.linear_model import LinearRegression
 
-residuals = new_dog_tweets['rating'] - line
-plt.hist(residuals, bins=80)
-plt.xlabel('Residuals')
-plt.ylabel('Frequency')
-plt.title('Residuals')
-plt.show()
+
+X_columns = ['temperature', 'cpu_percent', 'fan_rpm', 'sys_load_1', 'cpu_freq']
+y_column = 'next_temp'
+
+
+def get_data(filename):
+    """
+    Read the given CSV file. Returns sysinfo DataFrame with target (next temperature) column created.
+    """
+    sysinfo = pd.read_csv(filename, parse_dates=['timestamp'])
+
+    # TODO: add the column that we want to predict: the temperatures from the *next* time step.
+    sysinfo[y_column] = sysinfo['temperature'].shift(-1) # should be the temperature value from the next row
+    sysinfo = sysinfo[sysinfo[y_column].notnull()] # the last row should have y_column null: no next temp known
+    return sysinfo
+
+
+def get_trained_coefficients(X_train, y_train):
+    """
+    Create and train a model based on the training_data_file data.
+
+    Return the model, and the list of coefficients for the 'X_columns' variables in the regression.
+    """
+
+    # TODO: create regression model and train.
+    model = LinearRegression(fit_intercept=False)
+    model.fit(X_train, y_train)
+    coefficients = model.coef_
+    return model, coefficients
+
+
+def output_regression(coefficients):
+    regress = ' + '.join('%.3g*%s' % (coef, col) for col, coef in zip(X_columns, coefficients))
+    print('next_temp = ' + regress)
+
+
+def plot_errors(model, X_valid, y_valid):
+    residuals = y_valid - model.predict(X_valid)
+    plt.hist(residuals, bins=100)
+    plt.savefig('test_errors.png')
+    plt.close()
+
+
+def smooth_test(coef, sysinfo, outfile):
+    X_valid, y_valid = sysinfo[X_columns], sysinfo[y_column]
+
+    # feel free to tweak these if you think it helps.
+    transition_stddev = 0.5
+    observation_stddev = 1.0
+
+    dims = X_valid.shape[-1]
+    initial = X_valid.iloc[0]
+    observation_covariance = np.diag([observation_stddev, 2, 10, 1, 100]) ** 2
+    transition_covariance = np.diag([transition_stddev, 80, 100, 10, 1000]) ** 2
+
+    # Transition = identity for all variables, except we'll replace the top row
+    # to make a better prediction, which was the point of all this.
+    transition = np.identity(dims) # identity matrix, except...
+    transition[0,:] = coef
+    # TODO: replace the first row of transition to use the coefficients we just calculated (which were passed into this function as coef.).
+
+    kf = KalmanFilter(
+        initial_state_mean=initial,
+        initial_state_covariance=observation_covariance,
+        observation_covariance=observation_covariance,
+        transition_covariance=transition_covariance,
+        transition_matrices=transition,
+    )
+
+    kalman_smoothed, _ = kf.smooth(X_valid)
+
+    plt.figure(figsize=(15, 6))
+    plt.plot(sysinfo['timestamp'], sysinfo['temperature'], 'b.', alpha=0.5)
+    plt.plot(sysinfo['timestamp'], kalman_smoothed[:, 0], 'g-')
+    plt.savefig(outfile)
+    plt.close()
+
+
+def main(training_file, validation_file):
+    train = get_data(training_file)
+    valid = get_data(validation_file)
+    X_train, y_train = train[X_columns], train[y_column]
+    X_valid, y_valid = valid[X_columns], valid[y_column]
+
+    model, coefficients = get_trained_coefficients(X_train, y_train)
+    output_regression(coefficients)
+    smooth_test(coefficients, train, 'train2.png')
+
+    print("Training score: %g\nValidation score: %g" % (model.score(X_train, y_train), model.score(X_valid, y_valid)))
+
+    plot_errors(model, X_valid, y_valid)
+    smooth_test(coefficients, valid, 'valid2.png')
+
+
+if __name__ == '__main__':
+    main(sys.argv[1], sys.argv[2])
