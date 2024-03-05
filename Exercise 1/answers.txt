@@ -1,0 +1,9 @@
+1) Where you did the same calculations with NumPy and Pandas, which did you find easier to work with? Which code do you think is easier to read?
+Answer: I found pandas easier to work with because of priorr experience with the pandas library, pandas dataframe can be treated like a sql database table and allows easier manipulation of access to the rows and columns. On the other hand Numpy, altough i have some level of familiarity with I find it pretty cumbersome to work with and the data is harder to work and read for me. Even the code for pandas is easier to follow than numpy, the code is simple without any loops and highly readable. Numpy library functions feels less intuitive and are thus harder to read for me.
+
+2) What were the running times of the two pivot_months_* functions? How can you explain the difference?
+Answer:
+	- (Slower) pivot_months_loops  :	460   ms ±  10 ms per loop (mean ± std. dev. of 7 runs,  1 loop each)
+	- (Faster) pivot_months_pandas :	 17.8 ms ± 765 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+
+	Explanation: The difference between the two pivot_months_* are due to the fact that the pivot_months_loops function is iterating over the data to find all the stations and aggregating them in dictionary for look up. It is also manually building the dataframe one entry at a time by looking up the data in the temporary dictionary which farther adds to the running time.

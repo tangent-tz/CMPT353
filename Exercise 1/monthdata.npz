@@ -1,0 +1,6 @@
+countQuadrant/16384/repeats:20_median     363034 ns       363029 ns           20 items_per_second=45.1315M/s
+countTrue/16384/repeats:20_median         132489 ns       132488 ns           20 items_per_second=123.675M/s
+
+
+
+checkSecrets/16384/repeats:20_median    56498155 ns     56497908 ns           20 items_per_second=289.994k/s
