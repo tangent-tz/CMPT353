@@ -68,6 +68,10 @@ def plot_predictions(model, lum=70, resolution=256):
     plt.imshow(pixels)
 
 
+def rgb_to_lab(rgba):
+    return rgb2lab(rgba.reshape(1, -1, 3)).reshape(-1, 3)
+
+
 def main(infile):
     data = pd.read_csv(infile)
     # array with shape (n, 3). Divide by 255 so components are all 0-1.
@@ -87,12 +91,9 @@ def main(infile):
     print("RGB Model Accuracy: ", model_rgb.score(X_test, y_test))
 
     # # TODO: build model_lab to predict y from X by converting to LAB colour first.
-    def add_luminance(X):
-        return X.reshape(-1, 1)
 
-    model_lab = make_pipeline(FunctionTransformer(rgb2lab), GaussianNB())
+    model_lab = make_pipeline(FunctionTransformer(rgb_to_lab), GaussianNB())
     model_lab.fit(X_train, y_train)
-
 
     # # TODO: print model_lab's accuracy score
     print("LAB Model Accuracy: ", model_lab.score(X_test, y_test))
