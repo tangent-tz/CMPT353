@@ -5,9 +5,9 @@ from matplotlib import pyplot as plt
 from pykalman import KalmanFilter
 from sklearn.linear_model import LinearRegression
 
-
 X_columns = ['temperature', 'cpu_percent', 'fan_rpm', 'sys_load_1', 'cpu_freq']
 y_column = 'next_temp'
+
 
 def get_data(filename):
     """
@@ -79,6 +79,8 @@ def smooth_test(coef, sysinfo, outfile):
     plt.plot(sysinfo['timestamp'], kalman_smoothed[:, 0], 'g-')
     plt.savefig(outfile)
     plt.close()
+
+
 def main(training_file, validation_file):
     train = get_data(training_file)
     valid = get_data(validation_file)
@@ -88,10 +90,11 @@ def main(training_file, validation_file):
     output_regression(coefficients)
     smooth_test(coefficients, train, 'train.png')
 
-    print("Training score: %g\nValidation score: %g" % (model.score(X_train, y_train), model.score(X_valid, y_valid)))
+    #print("Training score: %g\nValidation score: %g" % (model.score(X_train, y_train), model.score(X_valid, y_valid)))
 
     plot_errors(model, X_valid, y_valid)
     smooth_test(coefficients, valid, 'valid.png')
+
 
 if __name__ == '__main__':
     main(sys.argv[1], sys.argv[2])
