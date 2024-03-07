@@ -1,12 +1,15 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from skimage.color import lab2rgb
+from skimage.color import lab2rgb, rgb2lab
 from sklearn.model_selection import train_test_split
 import sys
 from sklearn.naive_bayes import GaussianNB
 
 # representative RGB colours for each label, for nice display
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import FunctionTransformer
+
 COLOUR_RGB = {
     'red': (255, 0, 0),
     'orange': (255, 113, 0),
@@ -42,7 +45,7 @@ def plot_predictions(model, lum=70, resolution=256):
     X_grid = lab2rgb(lab_grid)
 
     # predict and convert predictions to colours so we can see what's happening
-    y_grid = model.predict(X_grid.reshape((wid*hei, 3)))
+    y_grid = model.predict(X_grid.reshape((wid * hei, 3)))
     pixels = np.stack(name_to_rgb(y_grid), axis=1) / 255
     pixels = pixels.reshape((hei, wid, 3))
 
@@ -68,29 +71,32 @@ def plot_predictions(model, lum=70, resolution=256):
 def main(infile):
     data = pd.read_csv(infile)
     # array with shape (n, 3). Divide by 255 so components are all 0-1.
-    X = data[['R', 'G', 'B']].values / 255
+    X = data[['R', 'G', 'B']] / 255
     X = np.array(X)
+
     # array with shape (n,) of colour words.
     y = data["Label"]
     y = np.array(y)
 
     # # TODO: build model_rgb to predict y from X.
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.33, random_state = 42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y)
     model_rgb = GaussianNB()
     model_rgb.fit(X_train, y_train)
 
-
     # # TODO: print model_rgb's accuracy score
-    print(model_rgb.score(X_test, y_test))
-    print(model_rgb.score(X_train, y_train))
-
+    print("RGB Model Accuracy: ", model_rgb.score(X_test, y_test))
 
     # # TODO: build model_lab to predict y from X by converting to LAB colour first.
-    X = lab2rgb(X)
-    model_lab = GaussianNB()
-    model_lab.fit(X, y)
+    def add_luminance(X):
+        return X.reshape(-1, 1)
+
+    model_lab = make_pipeline(FunctionTransformer(rgb2lab), GaussianNB())
+    model_lab.fit(X_train, y_train)
+
+
     # # TODO: print model_lab's accuracy score
-    print(model_lab.score(X_test, y_test))
+    print("LAB Model Accuracy: ", model_lab.score(X_test, y_test))
+
     plot_predictions(model_rgb)
     plt.savefig('predictions_rgb.png')
     plot_predictions(model_lab)
