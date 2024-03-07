@@ -1,0 +1,10 @@
+1) Looking at your dog-rates.ipynb, do you think the residual are close-enough to being normal to look at the OLS p-value? Can you reasonably conclude that the ratings are increasing?
+Answer:
+The residuals display a roughly bell-shaped distribution with a hint of left skewness, but may be enough to normal for the purposes of OLS analysis. The extremely low p-value (5.146690992602401e-121) suggests that the slope is different from zero. Therefore, you can reasonably conclude that the ratings are increasing.
+2) Do you think that the new “better” prediction is letting the Kalman filter do a better job capturing the true signal in the noise?
+Answer: Yes, the new better prediction is enabling the Kalman filter to more effectively distinguish the true signal by looking at the next temperature reading. Kalman filter is able to use the new prediction to adjust the estimate of the true signal.
+
+
+
+
+
